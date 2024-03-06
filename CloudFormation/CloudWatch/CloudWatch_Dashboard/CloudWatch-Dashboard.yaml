@@ -1,0 +1,703 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create CloudWatch Dashboard
+
+# システムに不要は AWS サービスの項目は削除して使用すること
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "CloudWatch Dashboard configuration"
+        Parameters:
+          - Ec2InstanceId
+          - Ec2ImageId
+          - Ec2InstanceType
+          - ECSServiceName
+          - ECSClusterName
+          - EFSFileSystemId
+          - AlbLoadBalancer
+          - AlbTargetGroup
+          - RdsDBInstanceIdentifier
+Parameters:
+  Ec2InstanceId:
+    Description: Ec2 InstanceId
+    Type: AWS::EC2::Instance::Id
+  Ec2ImageId:
+    Description: Ec2 ImageId (AMIID)
+    Type: String
+    Default: ami-XXXXX  # EC2 の ImageId
+  Ec2InstanceType:
+    Description: Ec2 InstanceType
+    Type: String
+    Default: XXXXX  # インスタンスタイプ
+  ECSServiceName:
+    Description: ECS ServiceName
+    Type: String
+    Default: XXXXX # ECS サービス名
+  ECSClusterName:
+    Description: ECS ClusterName
+    Type: String
+    Default: XXXXX # ECS クラスター名
+  EFSFileSystemId:
+    Description: EFS FileSystemId
+    Type: String
+    Default: XXXXX # EFS ID
+  AlbLoadBalancer:
+    Description: AlbLoadBalancer
+    Type: String
+    Default: app/XXXXX/XXXXX  # ALB の ARN
+  AlbTargetGroup:
+    Description: ALB TargetGroup
+    Type: String
+    Default: targetgroup/XXXXX/XXXXX  # ターゲットグループ ARN
+  RdsDBInstanceIdentifier:
+    Description: RDS DBInstanceIdentifier
+    Type: String
+    Default: XXXXX  # DB クラスター識別子
+
+Resources:
+# ------------------------------------------------------------#
+#  CloudWatch Dashboard
+# ------------------------------------------------------------#
+  CWDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub '${AWS::StackName}'
+      DashboardBody: !Sub |
+# EC2 metrics
+        {
+          "widgets": [
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 0,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/EC2", "CPUUtilization", "InstanceId", "${Ec2InstanceId}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "yAxis": {
+                          "left": {
+                              "min": 0,
+                              "max": 100
+                          }
+                      },
+                      "title": "EC2  CPU 使用率"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 0,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/EC2", "CPUCreditBalance", "InstanceId", "${Ec2InstanceId}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "EC2  CPU クレジットバランス"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 6,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "CWAgent", "mem_used_percent", "InstanceId", "${Ec2InstanceId}", "ImageId", "${Ec2ImageId}", "InstanceType", "${Ec2InstanceType}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "yAxis": {
+                          "left": {
+                              "min": 0,
+                              "max": 100
+                          }
+                      },
+                      "title": "EC2  メモリ使用率"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 6,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "CWAgent", "swap_used_percent", "InstanceId", "${Ec2InstanceId}", "ImageId", "${Ec2ImageId}", "InstanceType", "${Ec2InstanceType}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "EC2  swap 使用率"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 12,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "CWAgent", "diskio_reads", "InstanceId", "${Ec2InstanceId}", "ImageId", "${Ec2ImageId}", "name", "nvme0n1", "InstanceType", "${Ec2InstanceType}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "EC2  ディスク読み取り回数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 12,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "CWAgent", "diskio_writes", "InstanceId", "${Ec2InstanceId}", "ImageId", "${Ec2ImageId}", "name", "nvme0n1", "InstanceType", "${Ec2InstanceType}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "EC2  ディスク書き込み回数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 18,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "CWAgent", "diskio_io_time", "InstanceId", "${Ec2InstanceId}", "ImageId", "${Ec2ImageId}", "name", "nvme0n1", "InstanceType", "${Ec2InstanceType}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "EC2  ディスクI/O 時間"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 18,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "CWAgent", "disk_used_percent", "path", "/", "InstanceId", "${Ec2InstanceId}", "ImageId", "${Ec2ImageId}", "InstanceType", "${Ec2InstanceType}", "device", "nvme0n1p1", "fstype", "xfs" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "yAxis": {
+                          "left": {
+                              "label": "",
+                              "max": 100,
+                              "min": 0
+                          }
+                      },
+                      "title": "EC2  ディスク使用率"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 24,
+                  "width": 24,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": true,
+                      "metrics": [
+                          [ "AWS/EC2", "StatusCheckFailed", "InstanceId", "${Ec2InstanceId}" ],
+                          [ ".", "StatusCheckFailed_Instance", ".", "." ],
+                          [ ".", "StatusCheckFailed_System", ".", "." ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "EC2  ステータスチェック失敗"
+                  }
+              },
+# ECS metrics
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 114,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "ECS/ContainerInsights", "DesiredTaskCount", "ServiceName", "${ECSServiceName}", "ClusterName", "${ECSClusterName}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ECS タスク数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 114,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "ECS/ContainerInsights", "RunningTaskCount", "ServiceName", "${ECSServiceName}", "ClusterName", "${ECSClusterName}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ECS RUNNING 状態にあるタスク数"
+                  }
+              },
+# EFS metrics
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 102,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/EFS", "ClientConnections", "FileSystemId", "${EFSFileSystemId}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "EFS  クライアント接続数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 108,
+                  "width": 24,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/EFS", "BurstCreditBalance", "FileSystemId", "${EFSFileSystemId}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "EFS  利用可能なバーストクレジット数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 102,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/EFS", "PercentIOLimit", "FileSystemId", "${EFSFileSystemId}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "EFS  I/O制限に達するまでの割合"
+                  }
+              },
+# ALB metrics
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 30,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", "${AlbTargetGroup}", "LoadBalancer", "${AlbLoadBalancer}", "AvailabilityZone", "ap-northeast-1a" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB  正常ターゲット数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 30,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "RequestCount", "TargetGroup", "${AlbTargetGroup}", "LoadBalancer", "${AlbLoadBalancer}", "AvailabilityZone", "ap-northeast-1a" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB  リクエスト数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 42,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${AlbLoadBalancer}", "AvailabilityZone", "ap-northeast-1a" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB  ターゲットの応答時間 (秒)"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 36,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "ActiveConnectionCount", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB  有効接続数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 36,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "NewConnectionCount", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB  新規接続数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 42,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "ProcessedBytes", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB プロセスされたバイト数"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 48,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "RejectedConnectionCount", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB 接続エラー数 (ALB 最大接続超過)"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 48,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "TargetConnectionErrorCount", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB 接続エラー数 (LB - ターゲット間)"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 54,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "ClientTLSNegotiationErrorCount", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB TLS接続エラー数 (クライアント - LB間)"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 54,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "TargetTLSNegotiationErrorCount", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB TLS接続エラー数 (LB - ターゲット間)"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 60,
+                  "width": 6,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "HTTPCode_ELB_3XX_Count", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB  ELB 3XX (カウント)"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 6,
+                  "y": 60,
+                  "width": 6,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "HTTPCode_ELB_4XX_Count", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB  ELB 4XX (カウント)"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 60,
+                  "width": 6,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/ApplicationELB", "HTTPCode_ELB_5XX_Count", "LoadBalancer", "${AlbLoadBalancer}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "ALB  ELB 5XX (カウント)"
+                  }
+              },
+# Aurora metrics
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 66,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "CPUUtilization", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora  CPU 使用率"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 72,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "DatabaseConnections", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora DatabaseConnections"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 72,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "FreeableMemory", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora 空きメモリ容量"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 66,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "CPUCreditBalance", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora  CPU クレジットバランス"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 78,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "Queries", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora クエリ実行回数 (秒)"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 78,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "Deadlocks", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora デットロック回数 (秒)"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 84,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "SelectLatency", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora  Select レイテンシー"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 84,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "InsertLatency", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora  Insert レイテンシー"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 90,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "UpdateLatency", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora  Update レイテンシー"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 90,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "CommitLatency", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora  Commit レイテンシー"
+                  }
+              },
+              {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 96,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                      "view": "timeSeries",
+                      "stacked": false,
+                      "metrics": [
+                          [ "AWS/RDS", "DeleteLatency", "DBClusterIdentifier", "${RdsDBInstanceIdentifier}" ]
+                      ],
+                      "region": "ap-northeast-1",
+                      "title": "Aurora  Delete レイテンシー"
+                  }
+              }
+          ]
+        }
